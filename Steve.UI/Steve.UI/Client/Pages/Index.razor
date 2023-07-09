@@ -1,0 +1,116 @@
+﻿@page "/"
+@using Newtonsoft.Json
+@using Steve.UI.Client.Models
+
+<PageTitle>Index</PageTitle>
+
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large">
+
+@if (LogMessages is null)
+{
+    <MudStack Style="width: 100%">
+        <MudFileUpload T="IBrowserFile" OnFilesChanged="OnInputFileChanged" Hidden="false" Class="flex-1" InputClass="absolute mud-width-full mud-height-full overflow-hidden z-20" InputStyle="opacity:0"
+                   @ondragenter="@SetDragClass" @ondragleave="@ClearDragClass" @ondragend="@ClearDragClass">
+            <ButtonTemplate>
+                <MudPaper Height="300px" Outlined="true" Class="@DragClass">
+                    <MudText Typo="Typo.h6">Drag and drop file here or click</MudText>
+                </MudPaper>
+            </ButtonTemplate>
+        </MudFileUpload>
+    </MudStack>
+}
+else
+{
+    <MudDataGrid Items="@LogMessages" ReadOnly="true" ColumnResizeMode="ResizeMode.Column" RowsPerPage="5">
+        <Columns>
+            <HierarchyColumn T="LogMessage" ButtonDisabledFunc="@(x => false)" />
+            <PropertyColumn Property="x => x.Name" />
+            <PropertyColumn Property="x => x.Level" />
+            <PropertyColumn Property="x => x.Message" />
+            <PropertyColumn Property="x => x.LoggedFrom" />
+        </Columns>
+        <ChildRowContent>
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">@context.Item.Name</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                    @if(context.Item.Level != null)
+                    {
+                        <MudText>LogLevel: @context.Item.Level</MudText>
+                    }
+                    @if(@context.Item.Message != null)
+                    {
+                        <MudText>Message: @context.Item.Message</MudText>
+                    }
+                    @if(context.Item.Parameters != null)
+                    {
+                        <MudText>Parameters: @string.Join(",", context.Item.Parameters)</MudText>
+                    }
+                    @if(context.Item.CallerInfo != null)
+                    {
+                        <MudText>Origin: @context.Item.CallerInfo?.Origin</MudText>
+                        <MudText>Filepath: @context.Item.CallerInfo?.FilePath</MudText>
+                        <MudText>LineNumber: @context.Item.CallerInfo?.LineNumber</MudText>
+                    }
+                    @if(context.Item.Exception != null)
+                    {
+                        <MudText>Exception: @context.Item.Exception?.ToString()</MudText>
+                    }
+                    @if(context.Item.Object != null)
+                    {
+                        <MudText>Object: @context.Item.Object</MudText>
+                    }
+            </MudCardContent>
+        </MudCard>
+    </ChildRowContent>
+    <PagerContent>
+            <MudDataGridPager T="LogMessage" PageSizeOptions=@(new int[] {5, 10, 20}) />
+    </PagerContent>
+</MudDataGrid>
+}
+
+</MudContainer>
+
+
+@code {
+    private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
+    private string DragClass = DefaultDragClass;
+
+    private List<LogMessage>? LogMessages { get; set; } = null;
+
+    private async Task OnInputFileChanged(InputFileChangeEventArgs e)
+    {
+        ClearDragClass();
+        var file = e.GetMultipleFiles()[0];
+
+        string jsonFile = "";
+        var stream = file.OpenReadStream();
+        using (StreamReader reader = new StreamReader(stream))
+        {
+            jsonFile = await reader.ReadToEndAsync();
+        }
+
+        LogMessages = JsonConvert.DeserializeObject<List<LogMessage>>(jsonFile);
+    }
+
+    private async Task Clear()
+    {
+        ClearDragClass();
+        await Task.Delay(100);
+    }
+
+    private void SetDragClass()
+    {
+        DragClass = $"{DefaultDragClass} mud-border-primary";
+    }
+
+    private void ClearDragClass()
+    {
+        DragClass = DefaultDragClass;
+    }
+}
